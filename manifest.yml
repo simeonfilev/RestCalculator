@@ -1,0 +1,5 @@
+---
+applications:
+  - name: RestCalculator
+    path: target/WebCalculator.war
+    buildpack: https://github.com/cloudfoundry/java-buildpack.git
