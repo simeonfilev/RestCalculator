@@ -1,6 +1,8 @@
 package com.sap.acad.rest_calculator;
 
 import com.sap.acad.calculator.Calculator;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
 
@@ -36,7 +38,7 @@ public class RestCalculatorServletTest {
             }
 
             @Override
-            public void write(int b) throws IOException {
+            public void write(int b) {
                 outputJSON += (char) b;
             }
         };
@@ -48,49 +50,38 @@ public class RestCalculatorServletTest {
         outputJSON = "";
     }
 
-    private String removeJSONSpacings(String json) {
-        json = json.replaceAll("\n", "")
-                .replaceAll("\r", "")
-                .replaceAll("\"", "");
-        return json;
-    }
-
-    private String getAnswerParameterFromJSON() {
-        String answerFromServletRequest = removeJSONSpacings(outputJSON.substring(outputJSON.indexOf("answer: ") + "answer: ".length()));
-        String answerToExpressionFromServletRequest = answerFromServletRequest.replaceAll(",", "")
-                .replaceAll("}", "");
-        return answerToExpressionFromServletRequest;
-    }
-
     @Test
     public void returnsJSONToServletGetRequest() throws IOException {
         String expressionToCalculate = "5+2*3";
         Mockito.when(request.getParameter("expression")).thenReturn(expressionToCalculate);
         restServlet.doGet(request, response);
-        outputJSON = removeJSONSpacings(outputJSON);
-        boolean correctJSONFormat = outputJSON.charAt(0) == '{' && outputJSON.charAt(outputJSON.length() - 1) == '}';
-        Assertions.assertTrue(correctJSONFormat,"Does not return JSON");
+        Assertions.assertTrue(isValidJSON(outputJSON), "Does not return JSON");
     }
 
     @Test
     public void returnsCorrectAnswerToExpression() throws IOException {
         String expressionToCalculate = "5+2*3";
-        Double expectedAnswerToExpression = calculator.calculate(expressionToCalculate);
         Mockito.when(request.getParameter("expression")).thenReturn(expressionToCalculate);
         restServlet.doGet(request, response);
-        outputJSON = removeJSONSpacings(outputJSON);
-        String answerFromServlet = getAnswerParameterFromJSON();
-        boolean correctAnswerToExpression = answerFromServlet.equals(String.valueOf(expectedAnswerToExpression));
-        Assertions.assertTrue(correctAnswerToExpression, "Wrong answer!");
+        Double expectedAnswerToExpression = calculator.calculate(expressionToCalculate);
+        JSONObject json = new JSONObject(outputJSON);
+        Assertions.assertEquals(expectedAnswerToExpression, json.getDouble("answer"));
     }
 
     @Test
-    public void returnsEmptyJSONToEmptyExpression() throws IOException {
+    public void returnsBadRequestToEmptyExpression() throws IOException {
         Mockito.when(request.getParameter("expression")).thenReturn("");
         restServlet.doGet(request, response);
-        outputJSON = removeJSONSpacings(outputJSON);
-        boolean correctAnswerToExpression = outputJSON.equals("{}");
-        Assertions.assertTrue(correctAnswerToExpression, "Not empty!");
+        Assertions.assertFalse(isValidJSON(outputJSON));
+    }
+
+    private boolean isValidJSON(String test) {
+        try {
+            new JSONObject(test);
+        } catch (JSONException ex) {
+            return false;
+        }
+        return true;
     }
 
 }
