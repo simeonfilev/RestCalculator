@@ -5,6 +5,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
@@ -51,18 +52,11 @@ public class RestCalculatorServletTest {
     }
 
     @Test
-    public void returnsJSONToServletGetRequest() throws IOException {
+    public void returnCorrectJSONAnswerToExpressionToServletGetRequest() throws IOException {
         String expressionToCalculate = "5+2*3";
         Mockito.when(request.getParameter("expression")).thenReturn(expressionToCalculate);
         restServlet.doGet(request, response);
-        Assertions.assertTrue(isValidJSON(outputJSON), "Does not return JSON");
-    }
-
-    @Test
-    public void returnsCorrectAnswerToExpression() throws IOException {
-        String expressionToCalculate = "5+2*3";
-        Mockito.when(request.getParameter("expression")).thenReturn(expressionToCalculate);
-        restServlet.doGet(request, response);
+        Assertions.assertTrue(isValidJSON(outputJSON), "Does not return valid JSON");
         Double expectedAnswerToExpression = calculator.calculate(expressionToCalculate);
         JSONObject json = new JSONObject(outputJSON);
         Assertions.assertEquals(expectedAnswerToExpression, json.getDouble("answer"));
@@ -70,11 +64,20 @@ public class RestCalculatorServletTest {
 
     @Test
     public void returnsBadRequestToEmptyExpression() throws IOException {
-        Mockito.when(request.getParameter("expression")).thenReturn("");
+        String expressionToCalculate = "5+3*2";
+        Mockito.when(request.getParameter("expression")).thenReturn(expressionToCalculate);
+        Mockito.doAnswer((Answer<Void>) invocation -> {
+            Integer statusCode = (Integer) invocation.getArguments()[0];
+            if (expressionToCalculate == null || expressionToCalculate.trim().equals("")) {
+                Assertions.assertEquals(statusCode, HttpServletResponse.SC_BAD_REQUEST);
+                return null;
+            }
+            Assertions.assertEquals(statusCode, HttpServletResponse.SC_OK);
+            return null;
+        }).when(response).setStatus(Mockito.anyInt());
         restServlet.doGet(request, response);
-        Assertions.assertFalse(isValidJSON(outputJSON));
-    }
 
+    }
 
     private boolean isValidJSON(String test) {
         try {
