@@ -11,7 +11,7 @@ import java.io.IOException;
 
 import org.json.JSONObject;
 
-@WebServlet("/")
+@WebServlet("/calculator/expressions")
 public class RestCalculatorServlet extends HttpServlet {
 
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
