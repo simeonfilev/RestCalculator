@@ -10,7 +10,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-
 public class RestCalculatorServletTest {
 
     private static Calculator calculator;
@@ -49,14 +48,14 @@ public class RestCalculatorServletTest {
         outputJSON = "";
     }
 
-    public String removeJSONSpacings(String json) {
+    private String removeJSONSpacings(String json) {
         json = json.replaceAll("\n", "")
                 .replaceAll("\r", "")
                 .replaceAll("\"", "");
         return json;
     }
 
-    public String getAnswerParameterFromJSON() {
+    private String getAnswerParameterFromJSON() {
         String answerFromServletRequest = removeJSONSpacings(outputJSON.substring(outputJSON.indexOf("answer: ") + "answer: ".length()));
         String answerToExpressionFromServletRequest = answerFromServletRequest.replaceAll(",", "")
                 .replaceAll("}", "");
@@ -64,13 +63,13 @@ public class RestCalculatorServletTest {
     }
 
     @Test
-    public void returnsJSONToServletRequest() throws IOException {
+    public void returnsJSONToServletGetRequest() throws IOException {
         String expressionToCalculate = "5+2*3";
         Mockito.when(request.getParameter("expression")).thenReturn(expressionToCalculate);
         restServlet.doGet(request, response);
         outputJSON = removeJSONSpacings(outputJSON);
         boolean correctJSONFormat = outputJSON.charAt(0) == '{' && outputJSON.charAt(outputJSON.length() - 1) == '}';
-        Assertions.assertTrue(correctJSONFormat);
+        Assertions.assertTrue(correctJSONFormat,"Does not return JSON");
     }
 
     @Test
@@ -86,12 +85,12 @@ public class RestCalculatorServletTest {
     }
 
     @Test
-    public void returnsCorrectAnswerToEmptyExpression() throws IOException {
-        String expressionToCalculate = "";
-        Mockito.when(request.getParameter("expression")).thenReturn(expressionToCalculate);
+    public void returnsEmptyJSONToEmptyExpression() throws IOException {
+        Mockito.when(request.getParameter("expression")).thenReturn("");
         restServlet.doGet(request, response);
         outputJSON = removeJSONSpacings(outputJSON);
-        boolean correctAnswerToExpression = outputJSON.equals(String.valueOf("{}"));
+        boolean correctAnswerToExpression = outputJSON.equals("{}");
         Assertions.assertTrue(correctAnswerToExpression, "Not empty!");
     }
+
 }
