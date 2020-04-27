@@ -16,13 +16,14 @@ public class RestCalculatorServlet extends HttpServlet {
 
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Calculator calculator = new Calculator();
-        String expression = request.getParameter("expression");
 
-        if (expression.trim().equals("")) {
+        if (!request.getParameterMap().containsKey("expression")
+                || request.getParameter("expression").trim().equals("")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
 
+        String expression = request.getParameter("expression");
         JSONObject json = new JSONObject();
         json.put("expression", expression);
         json.put("answer", calculator.calculate(expression));
