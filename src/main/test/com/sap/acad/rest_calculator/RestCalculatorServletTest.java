@@ -75,6 +75,7 @@ public class RestCalculatorServletTest {
         Assertions.assertFalse(isValidJSON(outputJSON));
     }
 
+
     private boolean isValidJSON(String test) {
         try {
             new JSONObject(test);
