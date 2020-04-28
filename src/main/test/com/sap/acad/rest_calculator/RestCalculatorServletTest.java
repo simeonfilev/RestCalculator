@@ -49,10 +49,8 @@ public class RestCalculatorServletTest extends JerseyTest {
     @Test
     public void returnCorrectJSONAnswerToExpressionToServletGetRequest() {
         String expression = "5+2*3";
-        var req = target("/expressions/");
-        Response response = req.request().header("expression", expression)
-                .post(Entity.text(""));
-
+        var req = target("/expressions/").queryParam("expression", expression);
+        Response response = req.request().post(Entity.text(""));
         String json = response.readEntity(String.class);
         Assertions.assertTrue(isValidJSON(json), "Does not return valid JSON");
         Double expectedAnswerToExpression = calculator.calculate(expression);
@@ -63,9 +61,9 @@ public class RestCalculatorServletTest extends JerseyTest {
     }
 
     @Test
-    public void returnsBadRequestToEmptyExpression() {
+    public void returnsBadRequestToEmptyOrNullExpression() {
         String expression = "";
-        var req = target("/expressions/");
+        var req = target("/expressions/").queryParam("expression", expression);
         Response response = req.request().header("expression", expression)
                 .post(Entity.text(""));
         assertEquals("Http Response should be 400: ", Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());

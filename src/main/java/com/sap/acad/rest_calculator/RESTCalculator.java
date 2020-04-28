@@ -13,7 +13,7 @@ import org.json.JSONObject;
 public class RESTCalculator extends HttpServlet {
 
     @POST
-    public Response calculateExpression(@HeaderParam("expression") String expression) {
+    public Response calculateExpression(@QueryParam("expression") String expression) {
         Calculator calculator = new Calculator();
         if (expression == null || expression.trim().length() == 0) {
             return Response.status(Response.Status.BAD_REQUEST).entity("Invalid Expression").build();
