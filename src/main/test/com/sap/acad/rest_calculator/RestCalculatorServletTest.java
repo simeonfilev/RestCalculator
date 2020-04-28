@@ -64,8 +64,7 @@ public class RestCalculatorServletTest extends JerseyTest {
     public void returnsBadRequestToEmptyOrNullExpression() {
         String expression = "";
         var req = target("/expressions/").queryParam("expression", expression);
-        Response response = req.request().header("expression", expression)
-                .post(Entity.text(""));
+        Response response = req.request().post(Entity.text(""));
         assertEquals("Http Response should be 400: ", Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }
 }
