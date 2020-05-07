@@ -1,8 +1,10 @@
 package com.sap.acad.rest_calculator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sap.acad.calculator.Calculator;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.jupiter.api.*;
@@ -12,6 +14,11 @@ import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,6 +51,52 @@ public class RestCalculatorServletTest extends JerseyTest {
             return false;
         }
         return true;
+    }
+
+    @Test
+    public void returnCorrectJSONToHistoryRequest() {
+        var req = target("/expressions/");
+        Response response = req.request().get();
+        String json = response.readEntity(String.class);
+        Assertions.assertTrue(isValidJSON(json), "Does not return valid JSON");
+        assertEquals("Http Response should be 200: ", Response.Status.OK.getStatusCode(), response.getStatus());
+        assertEquals("Content type should be JSON: ", MediaType.APPLICATION_JSON, response.getMediaType().toString());
+    }
+
+    @Test
+    public void addsCorrectlyExpressionToDatabase() throws SQLException {
+        var req = target("/expressions/");
+        Response response = req.request().get();
+        String json = response.readEntity(String.class);
+        JSONObject jsonObject = new JSONObject(json);
+        JSONArray arr = (JSONArray) jsonObject.get("expressions");
+        int size = arr.toList().size();
+
+        ConnectionDatabase.addExpression("3+7","11");
+
+        Response newResponse = req.request().get();
+        String newJson = newResponse.readEntity(String.class);
+        JSONObject newJsonObject = new JSONObject(newJson);
+        JSONArray newArr = (JSONArray) newJsonObject.get("expressions");
+        int newSize = newArr.toList().size();
+        Assertions.assertTrue(size != newSize,"Didn't add expression to db");
+        var connection = ConnectionDatabase.getDatabase().getConnection();
+        String objForDelete = newArr.toList().get(newSize-1).toString();
+        int idIndex = objForDelete.indexOf("id=");
+        String idStr = objForDelete.substring(idIndex+"id=".length());
+        int counter =0;
+        while (true){
+            if(!Character.isDigit(idStr.charAt(counter))){
+                break;
+            }
+            counter++;
+        }
+        int id = Integer.parseInt(idStr.substring(0,counter));
+
+        String sql = "DELETE FROM expressions " + "WHERE id = "+id+";";
+        Statement stmt = connection.createStatement();
+        var query = connection.nativeSQL(sql);
+        stmt.executeUpdate(query);
     }
 
     @Test
