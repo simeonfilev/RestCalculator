@@ -1,9 +1,8 @@
-package com.sap.acad.rest_calculator;
+package com.sap.acad.rest.calculator;
 
 import com.sap.acad.calculator.Calculator;
-import com.sap.acad.rest_calculator.models.Expression;
-import com.sap.acad.rest_calculator.service.MySQLConnectionImpl;
-import com.sap.acad.rest_calculator.service.MySQLDatabase;
+import com.sap.acad.rest.calculator.models.Expression;
+import com.sap.acad.rest.calculator.storage.mysql.MySQLStorageImpl;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
 import org.json.JSONArray;
@@ -18,7 +17,6 @@ import javax.ws.rs.core.Response;
 
 
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import static org.junit.Assert.assertEquals;
 
@@ -64,7 +62,7 @@ public class RestCalculatorServletTest extends JerseyTest {
     }
 
     @Test
-    public void addsCorrectlyExpressionToDatabase() throws SQLException {
+    public void addsCorrectlyExpressionToDatabase() {
         var req = target("/expressions/");
         Response response = req.request().get();
         String json = response.readEntity(String.class);
@@ -72,29 +70,36 @@ public class RestCalculatorServletTest extends JerseyTest {
         JSONArray arr = (JSONArray) jsonObject.get("expressions");
         int size = arr.toList().size();
 
-        MySQLConnectionImpl mySQLConnection = new MySQLConnectionImpl();
-        mySQLConnection.saveExpression(new Expression("5+3",8.0));
-
+        MySQLStorageImpl mySQLConnection = new MySQLStorageImpl();
+        try {
+            mySQLConnection.saveExpression(new Expression("5+3", 8.0));
+        } catch (SQLException e) {
+            Assertions.fail("Couldn't connect to db");
+        }
         Response newResponse = req.request().get();
         String newJson = newResponse.readEntity(String.class);
         JSONObject newJsonObject = new JSONObject(newJson);
         JSONArray newArr = (JSONArray) newJsonObject.get("expressions");
         int newSize = newArr.toList().size();
 
-        Assertions.assertTrue(size != newSize,"Didn't add expression to db");
-        String objForDelete = newArr.toList().get(newSize-1).toString();
+        Assertions.assertTrue(size != newSize, "Didn't add expression to db");
+        String objForDelete = newArr.toList().get(newSize - 1).toString();
         int id = extractIdFromString(objForDelete);
-        mySQLConnection.deleteExpressionById(id);
-
+        try {
+            mySQLConnection.deleteExpressionById(id);
+        } catch (Exception e) {
+            Assertions.fail("Couldn't delete from database");
+        }
     }
-    public int extractIdFromString(String objForDelete){
+
+    public int extractIdFromString(String objForDelete) {
         int idIndex = objForDelete.indexOf("id=");
-        String idStr = objForDelete.substring(idIndex+"id=".length());
-        int counter =0;
+        String idStr = objForDelete.substring(idIndex + "id=".length());
+        int counter = 0;
         while (Character.isDigit(idStr.charAt(counter))) {
             counter++;
         }
-        return Integer.parseInt(idStr.substring(0,counter));
+        return Integer.parseInt(idStr.substring(0, counter));
     }
 
     @Test
@@ -109,6 +114,14 @@ public class RestCalculatorServletTest extends JerseyTest {
         Assertions.assertEquals(expectedAnswerToExpression, jsonObj.getDouble("answer"));
         assertEquals("Http Response should be 200: ", Response.Status.OK.getStatusCode(), response.getStatus());
         assertEquals("Content type should be JSON: ", MediaType.APPLICATION_JSON, response.getMediaType().toString());
+
+        MySQLStorageImpl mySQLConnection = new MySQLStorageImpl();
+        try {
+            mySQLConnection.deleteLastRowExpression();
+        } catch (Exception e) {
+            Assertions.fail("Couldn't delete from database");
+        }
+
     }
 
     @Test

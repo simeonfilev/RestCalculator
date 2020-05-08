@@ -1,4 +1,4 @@
-package com.sap.acad.rest_calculator;
+package com.sap.acad.rest.calculator;
 
 import org.glassfish.jersey.server.ResourceConfig;
 

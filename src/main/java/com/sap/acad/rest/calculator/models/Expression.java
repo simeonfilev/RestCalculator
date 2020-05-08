@@ -1,4 +1,4 @@
-package com.sap.acad.rest_calculator.models;
+package com.sap.acad.rest.calculator.models;
 
 public class Expression {
     private int id;
