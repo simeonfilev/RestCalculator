@@ -1,6 +1,5 @@
 package com.sap.acad.rest_calculator;
 
-import com.mysql.cj.jdbc.MysqlDataSource;
 import com.sap.acad.calculator.Calculator;
 
 import javax.servlet.http.HttpServlet;
@@ -8,81 +7,102 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import com.sap.acad.rest_calculator.models.Expression;
+import com.sap.acad.rest_calculator.service.MySQLConnectionImpl;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.ArrayList;
 
 @Path("/expressions")
 public class RESTCalculator extends HttpServlet {
     @GET
     public Response getHistory() {
-        JSONObject json = new JSONObject();
-        MysqlDataSource dataSource = ConnectionDatabase.getDatabase();
-        try {
-            var connection = dataSource.getConnection();
-            var query =connection.nativeSQL("SELECT * FROM expressions");
-            Statement stmt = connection.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-            JSONArray expressions = new JSONArray();
-            while (rs.next()){
-                JSONObject tempExpression = new JSONObject();
-                tempExpression.put("id",rs.getInt(1));
-                tempExpression.put("expression",rs.getString(2));
-                tempExpression.put("answer",rs.getDouble(3));
-                expressions.put(tempExpression);
-            }
-            json.put("expressions",expressions);
-        } catch (SQLException e) {
-            System.out.println("COULDN'T CONNECT TO DB");
-        }
-
-        return Response.status(Response.Status.OK)
-                .header("Access-Control-Allow-Origin", "*")
-                .header("Access-Control-Allow-Methods","GET")
-                .allow()
-                .type(MediaType.APPLICATION_JSON)
-                .entity(json.toString())
-                .build();
-
+        JSONObject json = getJSONObjectFromExpressionArray();
+        return okRequestGetHistoryGET(json);
     }
 
     @POST
     public Response calculateExpression(@QueryParam("expression") String expression) {
         Calculator calculator = new Calculator();
         if (expression == null || expression.trim().length() == 0) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .header("Access-Control-Allow-Origin", "*")
-                    .header("Access-Control-Allow-Methods","POST")
-                    .allow()
-                    .entity("Invalid Expression")
-                    .build();
+            return invalidExpressionResponsePOST();
         }
         JSONObject json = new JSONObject();
         json.put("expression", expression);
-        try{
+        try {
             double answer = calculator.calculate(expression);
             json.put("answer", answer);
-            ConnectionDatabase.addExpression(expression,String.valueOf(answer));
-            return Response.status(Response.Status.OK)
-                    .header("Access-Control-Allow-Origin", "*")
-                    .header("Access-Control-Allow-Methods","POST")
-                    .allow()
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(json.toString())
-                    .build();
-        }catch (Exception e){
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .header("Access-Control-Allow-Origin", "*")
-                    .header("Access-Control-Allow-Methods","POST")
-                    .allow()
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(json.toString())
-                    .build();
+            addExpressionToDatabase(expression);
+            return correctExpressionResponsePOST(json);
+        } catch (Exception e) {
+            return badRequestResponsePOST(json);
         }
     }
+
+    public void addExpressionToDatabase(String expression) {
+        Calculator calculator = new Calculator();
+        Expression expressionToSave = new Expression(expression, calculator.calculate(expression));
+        MySQLConnectionImpl mySQLConnection = new MySQLConnectionImpl();
+        mySQLConnection.saveExpression(expressionToSave);
+    }
+
+    public Response okRequestGetHistoryGET(JSONObject json) {
+        return Response.status(Response.Status.OK)
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "GET")
+                .allow()
+                .type(MediaType.APPLICATION_JSON)
+                .entity(json.toString())
+                .build();
+    }
+
+    public Response badRequestResponsePOST(JSONObject json) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "POST")
+                .allow()
+                .type(MediaType.APPLICATION_JSON)
+                .entity(json.toString())
+                .build();
+    }
+
+    public Response correctExpressionResponsePOST(JSONObject json) {
+        return Response.status(Response.Status.OK)
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "POST")
+                .allow()
+                .type(MediaType.APPLICATION_JSON)
+                .entity(json.toString())
+                .build();
+    }
+
+    public Response invalidExpressionResponsePOST() {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "POST")
+                .allow()
+                .entity("Invalid Expression")
+                .build();
+    }
+
+    public JSONObject getJSONObjectFromExpressionArray() {
+        MySQLConnectionImpl mySQLConnection = new MySQLConnectionImpl();
+        ArrayList<Expression> expressions = mySQLConnection.getExpressions();
+        JSONObject json = new JSONObject();
+
+        JSONArray jsonArray = new JSONArray();
+        for (Expression expression : expressions) {
+            JSONObject tempExpression = new JSONObject();
+            tempExpression.put("id", expression.getId());
+            tempExpression.put("expression", expression.getExpression());
+            tempExpression.put("answer", expression.getAnswer());
+            jsonArray.put(tempExpression);
+        }
+        json.put("expressions", jsonArray);
+        return json;
+    }
+
 }
 
 

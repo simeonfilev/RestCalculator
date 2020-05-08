@@ -1,7 +1,9 @@
 package com.sap.acad.rest_calculator;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sap.acad.calculator.Calculator;
+import com.sap.acad.rest_calculator.models.Expression;
+import com.sap.acad.rest_calculator.service.MySQLConnectionImpl;
+import com.sap.acad.rest_calculator.service.MySQLDatabase;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
 import org.json.JSONArray;
@@ -15,10 +17,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -72,31 +72,29 @@ public class RestCalculatorServletTest extends JerseyTest {
         JSONArray arr = (JSONArray) jsonObject.get("expressions");
         int size = arr.toList().size();
 
-        ConnectionDatabase.addExpression("3+7","11");
+        MySQLConnectionImpl mySQLConnection = new MySQLConnectionImpl();
+        mySQLConnection.saveExpression(new Expression("5+3",8.0));
 
         Response newResponse = req.request().get();
         String newJson = newResponse.readEntity(String.class);
         JSONObject newJsonObject = new JSONObject(newJson);
         JSONArray newArr = (JSONArray) newJsonObject.get("expressions");
         int newSize = newArr.toList().size();
+
         Assertions.assertTrue(size != newSize,"Didn't add expression to db");
-        var connection = ConnectionDatabase.getDatabase().getConnection();
         String objForDelete = newArr.toList().get(newSize-1).toString();
+        int id = extractIdFromString(objForDelete);
+        mySQLConnection.deleteExpressionById(id);
+
+    }
+    public int extractIdFromString(String objForDelete){
         int idIndex = objForDelete.indexOf("id=");
         String idStr = objForDelete.substring(idIndex+"id=".length());
         int counter =0;
-        while (true){
-            if(!Character.isDigit(idStr.charAt(counter))){
-                break;
-            }
+        while (Character.isDigit(idStr.charAt(counter))) {
             counter++;
         }
-        int id = Integer.parseInt(idStr.substring(0,counter));
-
-        String sql = "DELETE FROM expressions " + "WHERE id = "+id+";";
-        Statement stmt = connection.createStatement();
-        var query = connection.nativeSQL(sql);
-        stmt.executeUpdate(query);
+        return Integer.parseInt(idStr.substring(0,counter));
     }
 
     @Test
