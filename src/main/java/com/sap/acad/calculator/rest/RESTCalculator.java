@@ -10,6 +10,8 @@ import javax.ws.rs.core.Response;
 import com.sap.acad.rest.calculator.models.Expression;
 import com.sap.acad.rest.calculator.storage.StorageInterface;
 import com.sap.acad.rest.calculator.storage.mysql.MySQLStorageImpl;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -20,14 +22,17 @@ import java.util.ArrayList;
 public class RESTCalculator extends HttpServlet {
 
     private StorageInterface storage = new MySQLStorageImpl();
+    private static final Logger logger = LogManager.getLogger(RESTCalculator.class);
 
     @GET
     public Response getHistory() {
+
         try {
             JSONObject json = getJSONObjectFromExpressionArray();
             return okRequestGetHistoryGET(json);
         }catch (Exception e){
             System.out.println(e.getMessage());
+            logger.error(e.getMessage(),e);
             return serverErrorToGETHistory();
         }
     }
