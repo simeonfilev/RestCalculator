@@ -1,8 +1,10 @@
-package com.sap.acad.rest.calculator.storage.mysql;
+package com.sap.acad.calculator.rest.storage.mysql;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
-import com.sap.acad.rest.calculator.models.Expression;
-import com.sap.acad.rest.calculator.storage.StorageInterface;
+import com.sap.acad.calculator.rest.models.Expression;
+import com.sap.acad.calculator.rest.storage.StorageInterface;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -11,33 +13,45 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 public class MySQLStorageImpl implements StorageInterface {
+    private static final Logger logger = LogManager.getLogger(MySQLStorageImpl.class);
+    private static final String SQL_DELETE_LAST_EXPRESSION = "DELETE FROM expressions ORDER BY id DESC LIMIT 1;";
+    private static final String SQL_GET_ALL_EXPRESSIONS = "SELECT * FROM expressions;";
+    private static final String SQL_SAVE_EXPRESSION = "INSERT INTO expressions(expression,answer) VALUES (?,?);";
+    private static final String SQL_DELETE_EXPRESSION_WITH_ID = "DELETE FROM expressions WHERE id = ?;";
     private MysqlDataSource dataSource;
+
 
     public MySQLStorageImpl() {
         this.dataSource = new MysqlDataSource();
-        this.dataSource.setUser(System.getenv("db_username"));
-        this.dataSource.setPassword(System.getenv("db_password"));
-        this.dataSource.setServerName(System.getenv("server_name"));
-        this.dataSource.setDatabaseName(System.getenv("db_name"));
+        this.dataSource.setUser(System.getenv("DB_USERNAME"));
+        this.dataSource.setPassword(System.getenv("DB_PASSWORD"));
+        this.dataSource.setServerName(System.getenv("SERVER_NAME"));
+        this.dataSource.setDatabaseName(System.getenv("DB_NAME"));
     }
 
     @Override
-    public void saveExpression(Expression expression) throws SQLException {
-        try (Connection connection = this.dataSource.getConnection();
-             PreparedStatement statement = saveExpressionStatement(connection, expression)) {
+    public void saveExpression(Expression expression) {
+        logger.debug("Connecting to database...");
+        try (Connection connection = getConnection();
+             PreparedStatement statement = getPreparedStatement(SQL_SAVE_EXPRESSION, connection)) {
+            logger.debug("Connected to database! Saving expression:" + expression);
+            statement.setString(1, expression.getExpression());
+            statement.setDouble(2, expression.getAnswer());
             statement.execute();
-        } catch (SQLException e) {
-            throw new SQLException("database access error");
+            logger.debug("Successfully saved expression: " + expression);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
     }
 
     @Override
-    public ArrayList<Expression> getExpressions() throws SQLException {
+    public ArrayList<Expression> getExpressions() {
         ArrayList<Expression> expressions = new ArrayList<>();
-        try (Connection connection = this.dataSource.getConnection();
-             PreparedStatement statement = getExpressionsStatement(connection);
+        logger.debug("Connecting to database...");
+        try (Connection connection = getConnection();
+             PreparedStatement statement = getPreparedStatement(SQL_GET_ALL_EXPRESSIONS, connection);
              ResultSet rs = statement.executeQuery()) {
-
+            logger.debug("Connected to database!");
             while (rs.next()) {
                 Expression expression = new Expression();
                 expression.setId(rs.getInt(1));
@@ -45,59 +59,47 @@ public class MySQLStorageImpl implements StorageInterface {
                 expression.setAnswer(rs.getDouble(3));
                 expressions.add(expression);
             }
-        } catch (SQLException e) {
-            throw new SQLException("database access error");
+            logger.debug("Successfully received all expressions with length:" + expressions.size());
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
+
         return expressions;
     }
 
     @Override
-    public void deleteExpressionById(int id) throws SQLException {
-        try (Connection connection = this.dataSource.getConnection();
-             PreparedStatement statement = deleteExpressionByIdStatement(connection, id)) {
+    public void deleteExpressionById(int id) {
+        logger.debug("Connecting to database...");
+        try (Connection connection = getConnection();
+             PreparedStatement statement = getPreparedStatement(SQL_DELETE_EXPRESSION_WITH_ID, connection)) {
+            logger.debug("Connected to database! And trying to delete expression with id:" + id);
+            statement.setInt(1, id);
             statement.executeUpdate();
-
-        } catch (SQLException e) {
-            throw new SQLException("database access error");
+            logger.debug("Successfully deleted expression with id:" + id);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
     }
 
     @Override
-    public void deleteLastRowExpression() throws SQLException {
-        try (Connection connection = this.dataSource.getConnection();
-             PreparedStatement statement = deleteLastExpression(connection)) {
+    public void deleteLastRowExpression() {
+        logger.debug("Connecting to database...");
+        try (Connection connection = getConnection();
+             PreparedStatement statement = getPreparedStatement(SQL_DELETE_LAST_EXPRESSION, connection)) {
+            logger.debug("Connected to database! And trying to delete last row expression");
             statement.executeUpdate();
-
-        } catch (SQLException e) {
-            throw new SQLException("database access error");
+            logger.debug("Successfully deleted last row");
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
     }
 
-    public PreparedStatement deleteLastExpression(Connection connection) throws SQLException {
-        String sql = "DELETE FROM expressions ORDER BY id desc limit 1";
-        PreparedStatement statement = connection.prepareStatement(sql);
-        return statement;
+    public Connection getConnection() throws SQLException {
+        return this.dataSource.getConnection();
     }
 
-    public PreparedStatement getExpressionsStatement(Connection connection) throws SQLException {
-        String sql = "SELECT * FROM expressions";
-        PreparedStatement statement = connection.prepareStatement(sql);
-        return statement;
-    }
-
-    public PreparedStatement saveExpressionStatement(Connection connection, Expression expression) throws SQLException {
-        String sql = "insert into expressions(expression,answer) Values (?,?)";
-        PreparedStatement statement = connection.prepareStatement(sql);
-        statement.setString(1, expression.getExpression());
-        statement.setDouble(2, expression.getAnswer());
-        return statement;
-    }
-
-    public PreparedStatement deleteExpressionByIdStatement(Connection connection, int id) throws SQLException {
-        String sql = "DELETE FROM expressions WHERE id = ?;";
-        PreparedStatement statement = connection.prepareStatement(sql);
-        statement.setInt(1, id);
-        return statement;
+    private PreparedStatement getPreparedStatement(String sql, Connection connection) throws SQLException {
+        return connection.prepareStatement(sql);
     }
 
 }

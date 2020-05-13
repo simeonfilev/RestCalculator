@@ -1,4 +1,4 @@
-package com.sap.acad.rest.calculator.models;
+package com.sap.acad.calculator.rest.models;
 
 public class Expression {
     private int id;
@@ -41,5 +41,10 @@ public class Expression {
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    @Override
+    public String toString() {
+        return "Expression{expression='" + expression + '\'' + ", answer=" + answer + '}';
     }
 }

@@ -1,26 +1,38 @@
-package com.sap.acad.rest.calculator;
+package com.sap.acad.calculator.rest;
 
 import com.sap.acad.calculator.Calculator;
-import com.sap.acad.rest.calculator.models.Expression;
-import com.sap.acad.rest.calculator.storage.mysql.MySQLStorageImpl;
+import com.sap.acad.calculator.rest.models.Expression;
+import com.sap.acad.calculator.rest.storage.StorageInterface;
+import com.sap.acad.calculator.rest.storage.file.FileStorageImpl;
+import com.sap.acad.calculator.rest.storage.mysql.MySQLStorageImpl;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
-import org.json.JSONArray;
+import org.hsqldb.server.Server;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
-
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
+import static java.sql.DriverManager.getConnection;
 import static org.junit.Assert.assertEquals;
 
 public class RestCalculatorServletTest extends JerseyTest {
+
+    private static Calculator calculator;
+    private StorageInterface storage = new FileStorageImpl();
 
     @BeforeEach
     @Override
@@ -40,8 +52,6 @@ public class RestCalculatorServletTest extends JerseyTest {
         return new ResourceConfig(RESTCalculator.class);
     }
 
-    private static Calculator calculator;
-
     private boolean isValidJSON(String test) {
         try {
             new JSONObject(test);
@@ -49,6 +59,50 @@ public class RestCalculatorServletTest extends JerseyTest {
             return false;
         }
         return true;
+    }
+
+    @Test
+    public void StorageInterfaceIsWorkingCorrectly() {
+        List<Expression> expressions = new ArrayList<>();
+
+        StorageInterface storage = new StorageInterface() {
+            @Override
+            public void saveExpression(Expression expression) {
+                expressions.add(expression);
+            }
+
+            @Override
+            public List<Expression> getExpressions() {
+                return expressions;
+            }
+
+            @Override
+            public void deleteExpressionById(int id) {
+                expressions.remove(id);
+            }
+
+            @Override
+            public void deleteLastRowExpression() {
+                expressions.remove(expressions.size()-1);
+            }
+        };
+
+        Assertions.assertEquals(expressions.size(),0);
+
+        storage.saveExpression(new Expression("2+5",7.0));
+        storage.saveExpression(new Expression("2+1",3.0));
+        storage.saveExpression(new Expression("2+2",4.0));
+        Assertions.assertEquals(expressions.size(),3);
+
+        storage.deleteLastRowExpression();
+        Assertions.assertNotEquals(expressions.get(expressions.size()-1).getExpression(),"2+2");
+        Assertions.assertEquals(expressions.size(),2);
+
+        storage.deleteExpressionById(0);
+        Assertions.assertNotEquals(expressions.get(0).getExpression(),"2+5");
+        Assertions.assertEquals(expressions.size(),1);
+
+
     }
 
     @Test
@@ -61,46 +115,6 @@ public class RestCalculatorServletTest extends JerseyTest {
         assertEquals("Content type should be JSON: ", MediaType.APPLICATION_JSON, response.getMediaType().toString());
     }
 
-    @Test
-    public void addsCorrectlyExpressionToDatabase() {
-        var req = target("/expressions/");
-        Response response = req.request().get();
-        String json = response.readEntity(String.class);
-        JSONObject jsonObject = new JSONObject(json);
-        JSONArray arr = (JSONArray) jsonObject.get("expressions");
-        int size = arr.toList().size();
-
-        MySQLStorageImpl mySQLConnection = new MySQLStorageImpl();
-        try {
-            mySQLConnection.saveExpression(new Expression("5+3", 8.0));
-        } catch (SQLException e) {
-            Assertions.fail("Couldn't connect to db");
-        }
-        Response newResponse = req.request().get();
-        String newJson = newResponse.readEntity(String.class);
-        JSONObject newJsonObject = new JSONObject(newJson);
-        JSONArray newArr = (JSONArray) newJsonObject.get("expressions");
-        int newSize = newArr.toList().size();
-
-        Assertions.assertTrue(size != newSize, "Didn't add expression to db");
-        String objForDelete = newArr.toList().get(newSize - 1).toString();
-        int id = extractIdFromString(objForDelete);
-        try {
-            mySQLConnection.deleteExpressionById(id);
-        } catch (Exception e) {
-            Assertions.fail("Couldn't delete from database");
-        }
-    }
-
-    public int extractIdFromString(String objForDelete) {
-        int idIndex = objForDelete.indexOf("id=");
-        String idStr = objForDelete.substring(idIndex + "id=".length());
-        int counter = 0;
-        while (Character.isDigit(idStr.charAt(counter))) {
-            counter++;
-        }
-        return Integer.parseInt(idStr.substring(0, counter));
-    }
 
     @Test
     public void returnCorrectJSONAnswerToExpressionToServletGetRequest() {
@@ -115,13 +129,89 @@ public class RestCalculatorServletTest extends JerseyTest {
         assertEquals("Http Response should be 200: ", Response.Status.OK.getStatusCode(), response.getStatus());
         assertEquals("Content type should be JSON: ", MediaType.APPLICATION_JSON, response.getMediaType().toString());
 
-        MySQLStorageImpl mySQLConnection = new MySQLStorageImpl();
+
         try {
-            mySQLConnection.deleteLastRowExpression();
+            storage.deleteLastRowExpression(); //delete expression from history
         } catch (Exception e) {
             Assertions.fail("Couldn't delete from database");
         }
 
+    }
+
+    @Test
+    public void textBasedStorageIsWorkingCorrectly() {
+        FileStorageImpl storage = new FileStorageImpl("test.txt");
+
+        Assertions.assertEquals(0, storage.getExpressions().size());
+
+        storage.saveExpression(new Expression("2+5", 7.0));
+        storage.saveExpression(new Expression("1+2", 3.0));
+        storage.saveExpression(new Expression("1+4", 5.0));
+        storage.saveExpression(new Expression("1+7", 8.0));
+        storage.saveExpression(new Expression("1+9", 10.0));
+        Assertions.assertEquals(5, storage.getExpressions().size(), "Added correctly expression to storage");
+
+        storage.deleteExpressionById(0);
+        Assertions.assertNotEquals("2+5", storage.getExpressions().get(0).getExpression());
+
+        storage.deleteLastRowExpression();
+        Assertions.assertNotEquals("1+9", storage.getExpressions().get(storage.getExpressions().size() - 1));
+
+        storage.deleteStorageFile();
+
+    }
+
+    @Test
+    public void mySQLBasedStorageIsWorkingCorrectly() {
+        MySQLStorageImpl storage = new MySQLStorageImpl();
+        List<Expression> expressionList = storage.getExpressions();
+        int startingCount = expressionList.size();
+
+        storage.saveExpression(new Expression("2+5", 7.0));
+        Assertions.assertEquals(startingCount + 1, storage.getExpressions().size(), "Successfully added expression to database");
+
+        storage.saveExpression(new Expression("2+6", 8.0));
+        storage.deleteLastRowExpression();
+        Assertions.assertEquals(storage.getExpressions().get(storage.getExpressions().size() - 1).getExpression(), "2+5", "Successfully removed last expression");
+        Assertions.assertEquals(startingCount + 1, storage.getExpressions().size());
+
+        while (startingCount != storage.getExpressions().size()) {
+            storage.deleteLastRowExpression();
+        }
+
+    }
+
+    @Test
+    public void inMemoryDatabaseSQLIsWorkingCorrectly() throws ClassNotFoundException, SQLException {
+        MySQLStorageImpl spyStorage = Mockito.spy(MySQLStorageImpl.class);
+        Server server = new Server();
+        server.start();
+
+
+        String url = "jdbc:hsqldb:mem:mymemdb;shutdown=false";
+        Connection c = getConnection(url);
+        Mockito.when(spyStorage.getConnection()).thenReturn(c);
+
+        // SET UP Table
+        c.prepareStatement("CREATE TABLE expressions(id INTEGER IDENTITY PRIMARY KEY,expression  varchar(255),answer double); ").execute();
+
+        Mockito.when(spyStorage.getConnection()).thenReturn(DriverManager.getConnection(url));
+        Assertions.assertEquals(spyStorage.getExpressions().size(), 0);
+
+        Mockito.when(spyStorage.getConnection()).thenReturn(DriverManager.getConnection(url));
+        spyStorage.saveExpression(new Expression("15+5", 20.0));
+
+        Mockito.when(spyStorage.getConnection()).thenReturn(DriverManager.getConnection(url));
+        Assertions.assertEquals(spyStorage.getExpressions().size(), 1);
+
+
+        Mockito.when(spyStorage.getConnection()).thenReturn(DriverManager.getConnection(url));
+        spyStorage.deleteExpressionById(0);
+
+        Mockito.when(spyStorage.getConnection()).thenReturn(DriverManager.getConnection(url));
+        Assertions.assertEquals(spyStorage.getExpressions().size(), 0);
+
+        server.stop();
     }
 
     @Test
@@ -131,4 +221,5 @@ public class RestCalculatorServletTest extends JerseyTest {
         Response response = req.request().post(Entity.text(""));
         assertEquals("Http Response should be 400: ", Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }
+
 }

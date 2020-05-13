@@ -1,18 +1,18 @@
-package com.sap.acad.rest.calculator.storage;
+package com.sap.acad.calculator.rest.storage;
 
-import com.sap.acad.rest.calculator.models.Expression;
+import com.sap.acad.calculator.rest.exceptions.StorageException;
+import com.sap.acad.calculator.rest.models.Expression;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
+import java.util.List;
 
 public interface StorageInterface {
 
-    void saveExpression(Expression expression) throws SQLException;
+    void saveExpression(Expression expression);
 
-    ArrayList<Expression> getExpressions() throws SQLException;
+    List<Expression> getExpressions();
 
-    void deleteExpressionById(int id) throws SQLException;
+    void deleteExpressionById(int id);
 
-    void deleteLastRowExpression() throws SQLException;
+    void deleteLastRowExpression();
 
 }

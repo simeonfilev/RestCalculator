@@ -1,40 +1,33 @@
-package com.sap.acad.rest.calculator;
+package com.sap.acad.calculator.rest;
 
 import com.sap.acad.calculator.Calculator;
-
-import javax.servlet.http.HttpServlet;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import com.sap.acad.rest.calculator.models.Expression;
-import com.sap.acad.rest.calculator.storage.StorageInterface;
-import com.sap.acad.rest.calculator.storage.mysql.MySQLStorageImpl;
+import com.sap.acad.calculator.rest.models.Expression;
+import com.sap.acad.calculator.rest.storage.StorageInterface;
+import com.sap.acad.calculator.rest.storage.mysql.MySQLStorageImpl;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
+import javax.servlet.http.HttpServlet;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.util.List;
 
 @Path("/expressions")
 public class RESTCalculator extends HttpServlet {
 
-    private StorageInterface storage = new MySQLStorageImpl();
     private static final Logger logger = LogManager.getLogger(RESTCalculator.class);
+    private StorageInterface storage = new MySQLStorageImpl();
 
     @GET
     public Response getHistory() {
-
-        try {
-            JSONObject json = getJSONObjectFromExpressionArray();
-            return okRequestGetHistoryGET(json);
-        }catch (Exception e){
-            System.out.println(e.getMessage());
-            logger.error(e.getMessage(),e);
-            return serverErrorToGETHistory();
-        }
+        JSONObject json = getJSONObjectFromExpressionArray();
+        return okRequestGetHistoryGET(json);
     }
 
     @POST
@@ -49,21 +42,23 @@ public class RESTCalculator extends HttpServlet {
             double answer = calculator.calculate(expression);
             json.put("answer", answer);
             addExpressionToStorage(expression);
+            storage.deleteExpressionById(0);
             return correctExpressionResponsePOST(json);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            logger.error(e.getMessage(), e);
             return badRequestResponsePOST(json);
         }
+
     }
 
-    public void addExpressionToStorage(String expression) throws SQLException {
+
+    public void addExpressionToStorage(String expression) {
         Calculator calculator = new Calculator();
         Expression expressionToSave = new Expression(expression, calculator.calculate(expression));
-
         this.storage.saveExpression(expressionToSave);
     }
 
-    public Response serverErrorToGETHistory(){
+    public Response serverErrorToGETHistory() {
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .header("Access-Control-Allow-Origin", "*")
                 .header("Access-Control-Allow-Methods", "GET")
@@ -112,8 +107,9 @@ public class RESTCalculator extends HttpServlet {
                 .build();
     }
 
-    public JSONObject getJSONObjectFromExpressionArray() throws SQLException {
-        ArrayList<Expression> expressions = storage.getExpressions();
+    public JSONObject getJSONObjectFromExpressionArray() {
+
+        List<Expression> expressions = storage.getExpressions();
         JSONObject json = new JSONObject();
 
         JSONArray jsonArray = new JSONArray();
