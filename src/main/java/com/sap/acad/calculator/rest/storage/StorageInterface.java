@@ -7,12 +7,12 @@ import java.util.List;
 
 public interface StorageInterface {
 
-    void saveExpression(Expression expression);
+    void saveExpression(Expression expression) throws StorageException;
 
-    List<Expression> getExpressions();
+    List<Expression> getExpressions() throws StorageException;
 
-    void deleteExpressionById(int id);
+    void deleteExpressionById(int id) throws StorageException;
 
-    void deleteLastRowExpression();
+    void deleteLastRowExpression() throws StorageException;
 
 }

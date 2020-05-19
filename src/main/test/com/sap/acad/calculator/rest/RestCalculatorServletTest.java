@@ -1,6 +1,7 @@
 package com.sap.acad.calculator.rest;
 
 import com.sap.acad.calculator.Calculator;
+import com.sap.acad.calculator.rest.exceptions.StorageException;
 import com.sap.acad.calculator.rest.models.Expression;
 import com.sap.acad.calculator.rest.storage.StorageInterface;
 import com.sap.acad.calculator.rest.storage.file.FileStorageImpl;
@@ -62,7 +63,7 @@ public class RestCalculatorServletTest extends JerseyTest {
     }
 
     @Test
-    public void StorageInterfaceIsWorkingCorrectly() {
+    public void StorageInterfaceIsWorkingCorrectly() throws StorageException {
         List<Expression> expressions = new ArrayList<>();
 
         StorageInterface storage = new StorageInterface() {
@@ -92,17 +93,17 @@ public class RestCalculatorServletTest extends JerseyTest {
         storage.saveExpression(new Expression("2+5",7.0));
         storage.saveExpression(new Expression("2+1",3.0));
         storage.saveExpression(new Expression("2+2",4.0));
-        Assertions.assertEquals(expressions.size(),3);
+        Assertions.assertEquals(3,expressions.size());
 
         storage.deleteLastRowExpression();
-        Assertions.assertNotEquals(expressions.get(expressions.size()-1).getExpression(),"2+2");
-        Assertions.assertEquals(expressions.size(),2);
+        Assertions.assertNotEquals("2+2",expressions.get(expressions.size()-1).getExpression());
+        Assertions.assertEquals(2,expressions.size());
 
         storage.deleteExpressionById(0);
-        Assertions.assertNotEquals(expressions.get(0).getExpression(),"2+5");
-        Assertions.assertEquals(expressions.size(),1);
+        Assertions.assertNotEquals("2+5",expressions.get(0).getExpression());
+        Assertions.assertEquals(1,expressions.size());
 
-
+        Assertions.assertEquals("2+1",expressions.get(0).getExpression());
     }
 
     @Test
@@ -139,7 +140,7 @@ public class RestCalculatorServletTest extends JerseyTest {
     }
 
     @Test
-    public void textBasedStorageIsWorkingCorrectly() {
+    public void textBasedStorageIsWorkingCorrectly() throws StorageException {
         FileStorageImpl storage = new FileStorageImpl("test.txt");
 
         Assertions.assertEquals(0, storage.getExpressions().size());
@@ -162,7 +163,7 @@ public class RestCalculatorServletTest extends JerseyTest {
     }
 
     @Test
-    public void mySQLBasedStorageIsWorkingCorrectly() {
+    public void mySQLBasedStorageIsWorkingCorrectly() throws StorageException {
         MySQLStorageImpl storage = new MySQLStorageImpl();
         List<Expression> expressionList = storage.getExpressions();
         int startingCount = expressionList.size();
@@ -182,7 +183,7 @@ public class RestCalculatorServletTest extends JerseyTest {
     }
 
     @Test
-    public void inMemoryDatabaseSQLIsWorkingCorrectly() throws ClassNotFoundException, SQLException {
+    public void inMemoryDatabaseSQLIsWorkingCorrectly() throws ClassNotFoundException, SQLException, StorageException {
         MySQLStorageImpl spyStorage = Mockito.spy(MySQLStorageImpl.class);
         Server server = new Server();
         server.start();
