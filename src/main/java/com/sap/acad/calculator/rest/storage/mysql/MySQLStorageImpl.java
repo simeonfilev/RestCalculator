@@ -47,18 +47,21 @@ public class MySQLStorageImpl implements StorageInterface {
         List<Expression> expressions = new ArrayList<>();
         logger.debug("Connecting to database...");
         try (Connection connection = getConnection();
-             PreparedStatement statement = getPreparedStatement(SQL_GET_ALL_EXPRESSIONS, connection);
-             ResultSet rs = statement.executeQuery()) {
-            logger.debug("Connected to database!");
-            while (rs.next()) {
-                int id = rs.getInt(1);
-                String expressionString = rs.getString(2);
-                Double answer = rs.getDouble(3);
-                Expression expression = new Expression(id,expressionString,answer);
-                expressions.add(expression);
+             PreparedStatement statement = getPreparedStatement(SQL_GET_ALL_EXPRESSIONS, connection)) {
+
+            try (ResultSet rs = statement.executeQuery()) {
+                logger.debug("Connected to database!");
+                while (rs.next()) {
+                    int id = rs.getInt(1);
+                    String expressionString = rs.getString(2);
+                    Double answer = rs.getDouble(3);
+                    Expression expression = new Expression(id, expressionString, answer);
+                    expressions.add(expression);
+                }
+                logger.debug("Successfully received all expressions with length:" + expressions.size());
             }
-            logger.debug("Successfully received all expressions with length:" + expressions.size());
-        } catch (SQLException | ClassNotFoundException e) {
+
+        }catch (SQLException | ClassNotFoundException e) {
           throw new StorageException(e.getMessage(), e);
         }
 

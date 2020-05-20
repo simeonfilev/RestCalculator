@@ -20,9 +20,7 @@ public class FileStorageImpl implements StorageInterface {
         File file = new File(fileName);
         try {
             file.createNewFile();
-        }catch (SecurityException e) {
-            logger.error(e.getMessage(), e);
-        }catch(IOException e) {
+        }catch (SecurityException | IOException e) {
             logger.error(e.getMessage(), e);
         }
     }
@@ -32,9 +30,7 @@ public class FileStorageImpl implements StorageInterface {
         File file = new File(name);
         try {
             file.createNewFile();
-        } catch (SecurityException e) {
-            logger.error(e.getMessage(), e);
-        }catch(IOException e) {
+        } catch (SecurityException | IOException e) {
             logger.error(e.getMessage(), e);
         }
     }
@@ -46,9 +42,12 @@ public class FileStorageImpl implements StorageInterface {
             myWriter.write(expression.getExpression() + "," + expression.getAnswer() + System.lineSeparator());
             myWriter.close();
             logger.debug("Successfully added expression: " + expression);
+        } catch (FileNotFoundException e){
+            logger.error(e.getMessage(),e);
+            throw new StorageException("File not found!");
         } catch (IOException e) {
-            logger.error("File not found!");
-            throw new StorageException(e.getMessage(),e);
+            logger.error(e.getMessage(),e);
+            throw new StorageException("Can't read/write to file!");
         }
     }
 
@@ -65,9 +64,12 @@ public class FileStorageImpl implements StorageInterface {
                 expressions.add(new Expression(id, expression, answer));
             }
             logger.debug("Successfully receive all expressions with count:" + expressions.size());
+        } catch (FileNotFoundException e){
+            logger.error(e.getMessage(),e);
+            throw new StorageException("File not found!");
         } catch (IOException e) {
-            logger.error("File not found!");
-           throw new StorageException("File not found or can't be opened!");
+            logger.error(e.getMessage(),e);
+            throw new StorageException("Can't read/write to file!");
         }
         return expressions;
     }
@@ -89,9 +91,12 @@ public class FileStorageImpl implements StorageInterface {
                 counter++;
             }
             logger.debug("Successfully deleted expression with id:" + id);
+        }catch (FileNotFoundException e){
+            logger.error(e.getMessage(),e);
+            throw new StorageException("File not found!");
         } catch (IOException e) {
-            logger.error("File not found!");
-            throw new StorageException("File not found or can't be opened!");
+            logger.error(e.getMessage(),e);
+            throw new StorageException("Can't read/write to file!");
         }
 
         inputFile.delete();
