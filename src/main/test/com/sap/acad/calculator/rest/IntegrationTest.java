@@ -1,4 +1,4 @@
-package com.sap.acad.rest_calculator;
+package com.sap.acad.calculator.rest;
 
 import java.io.*;
 import java.net.*;
@@ -20,7 +20,7 @@ import javax.ws.rs.core.MediaType;
 public class IntegrationTest {
     private Tomcat tomcat;
     private Calculator calculator;
-
+    private String host = "http://localhost:8085";
     @Before
     public void setUp() throws Exception {
         this.calculator = new Calculator();
@@ -55,7 +55,7 @@ public class IntegrationTest {
     @Test
     public void verifyRESTServiceCorrectness() throws IOException, InterruptedException {
         String expression="5-3";
-        String url = "http://localhost:8085/RestCalculator/calculator/expressions?expression="+expression;
+        String url = host+"/RestCalculator/calculator/expressions?expression="+expression;
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
